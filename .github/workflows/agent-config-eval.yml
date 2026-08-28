@@ -1,0 +1,33 @@
+name: Agent config eval
+
+# The .claude/ directory steers every session in this repo. Treat a change to it
+# like a change to code: gate it on a pass rate, not on review-by-eyeball.
+
+on:
+  pull_request:
+    paths:
+      - 'CLAUDE.md'
+      - '.claude/**'
+      - 'evals/**'
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays, to catch drift from model and CLI updates
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run the eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          THRESHOLD: '80'
+        run: ./evals/run.sh
+
+      # A failure here means a configuration change lowered the pass rate.
+      # Read the failing case before merging; do not lower THRESHOLD to go green.
